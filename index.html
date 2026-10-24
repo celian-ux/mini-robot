@@ -1,0 +1,631 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Mini-robot 2-1</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@112,600;112,800;100,400;100,500;100,600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout : une visionneuse CAO plein cadre en ouverture, puis un compte rendu en colonnes sobres sur le même fond graphite. Thème sombre unique, assumé (écran d'atelier). */
+:root{
+  color-scheme:dark;
+  --ink:#10141a;        /* fond graphite bleuté, comme un viewport CAO */
+  --panel:#171d25;
+  --line:#2a333f;
+  --fg:#e8e3da;         /* blanc cassé chaud, lisible sur graphite */
+  --mute:#9aa3ad;
+  --mdf:#c9a173;        /* accent : la teinte du panneau MDF du robot */
+  --mdf-deep:#8a5f38;
+  --ok:#5cc79a;         /* statut : visible / confirmé */
+  --info:#7fb0e6;       /* statut : principe théorique */
+  --warn:#e8b14d;       /* statut : à vérifier */
+  --display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --body:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{background:var(--ink);color:var(--fg)}
+body{font-family:var(--body);font-variation-settings:"wdth" 100;font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:var(--mdf)}
+:focus-visible{outline:2px solid var(--mdf);outline-offset:3px}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+h1,h2,h3{font-family:var(--display);font-variation-settings:"wdth" 112;font-weight:800;line-height:1.05;margin:0;text-wrap:balance;letter-spacing:-.01em}
+
+/* ---------- top bar ---------- */
+.top{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-block:22px 18px}
+.top h1{font-size:clamp(30px,5vw,52px)}
+.top h1 span{color:var(--mdf)}
+.meta{display:flex;gap:8px 18px;flex-wrap:wrap;font-family:var(--mono);font-size:13px;color:var(--mute)}
+.meta b{color:var(--fg);font-weight:600}
+
+/* ---------- viewer ---------- */
+.viewer{position:relative;height:clamp(520px,78vh,860px);border-top:1px solid var(--line);border-bottom:1px solid var(--line);overflow:hidden;background:radial-gradient(ellipse at 50% 42%,#1d2530 0%,var(--ink) 70%);touch-action:none}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block}
+#links{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#links line{stroke:var(--mdf);stroke-width:1;stroke-opacity:.55}
+#links line.on{stroke-opacity:1;stroke-width:1.6}
+.dot{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:var(--mdf);box-shadow:0 0 0 4px rgba(201,161,115,.18),0 0 14px rgba(201,161,115,.7);pointer-events:none;transition:transform .3s}
+.dot.on{transform:scale(1.5);background:#fff}
+.dot.on::after{content:"";position:absolute;inset:-10px;border:1px solid var(--mdf);border-radius:50%;animation:ping 1.6s ease-out infinite}
+@keyframes ping{from{transform:scale(.4);opacity:1}to{transform:scale(1.6);opacity:0}}
+
+.orb{position:absolute;left:0;top:0;transform:translate(-50%,-50%);min-width:160px;max-width:210px;padding:10px 14px 11px;border:1px solid var(--line);border-radius:10px;background:rgba(23,29,37,.86);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:var(--fg);text-align:left;cursor:pointer;font:inherit;transition:border-color .25s,background .25s,opacity .35s}
+.orb:hover{border-color:var(--mdf)}
+.orb.on{border-color:var(--mdf);background:rgba(43,34,24,.92)}
+.orb.dim{opacity:.38}
+.orb .k{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--mdf)}
+.orb .t{display:block;font-family:var(--display);font-variation-settings:"wdth" 112;font-weight:800;font-size:15px;letter-spacing:.02em;line-height:1.2;margin-top:2px}
+.orb .s{display:block;font-size:13px;color:var(--mute);line-height:1.35;margin-top:3px}
+
+.disclaimer{position:absolute;left:max(16px,env(safe-area-inset-left,0px));bottom:16px;max-width:min(420px,70%);font-family:var(--mono);font-size:11.5px;line-height:1.45;color:var(--mute);background:rgba(16,20,26,.7);border:1px solid var(--line);border-radius:8px;padding:8px 10px;pointer-events:none}
+.disclaimer b{color:var(--warn);font-weight:600}
+.tools{position:absolute;right:max(16px,env(safe-area-inset-right,0px));bottom:16px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.tools button,.back{font-family:var(--mono);font-size:12.5px;color:var(--fg);background:rgba(23,29,37,.9);border:1px solid var(--line);border-radius:8px;padding:9px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;min-height:40px}
+.tools button:hover,.back:hover{border-color:var(--mdf)}
+.tools button[aria-pressed="true"]{border-color:var(--mdf);color:var(--mdf)}
+.hint{position:absolute;left:max(16px,env(safe-area-inset-left,0px));bottom:108px;font-family:var(--mono);font-size:11.5px;color:var(--mute);pointer-events:none}
+#loading{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--mono);font-size:13px;color:var(--mute)}
+
+/* ---------- detail panel ---------- */
+.panel{position:absolute;top:14px;right:max(16px,env(safe-area-inset-right,0px));bottom:70px;width:min(400px,42%);background:rgba(20,25,32,.96);border:1px solid var(--line);border-radius:14px;padding:20px 22px;overflow-y:auto;transform:translateX(calc(100% + 40px));transition:transform .45s cubic-bezier(.2,.8,.2,1);z-index:5}
+.panel.open{transform:none}
+.panel h2{font-size:26px;margin-top:6px}
+.panel .lead{color:var(--mute);font-size:15px;margin:8px 0 14px}
+.blk{border-top:1px solid var(--line);padding-top:12px;margin-top:14px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:99px;border:1px solid currentColor}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.c-ok{color:var(--ok)}.c-info{color:var(--info)}.c-warn{color:var(--warn)}
+.blk p,.blk li{font-size:15px;line-height:1.55;margin:8px 0 0}
+.blk ul{margin:0;padding-left:18px}
+.code{margin-top:16px;font-family:var(--mono);font-size:12.5px;line-height:1.5;border:1px dashed var(--line);border-radius:8px;padding:10px 12px;color:var(--mute)}
+.code b{color:var(--fg);font-weight:600}
+.back{margin-top:18px}
+
+/* ---------- report ---------- */
+section.rep{padding-block:72px 8px}
+.rep h2{font-size:clamp(28px,4vw,40px);margin-top:8px}
+.prose{max-width:66ch;color:#d3cec5}
+.prose p{margin:16px 0 0}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:40px;align-items:start;margin-top:28px}
+.photos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:28px}
+.photos figure{margin:0}
+.photos img{display:block;width:100%;height:auto;aspect-ratio:3/4;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+.photos figcaption{font-family:var(--mono);font-size:12px;color:var(--mute);margin-top:8px;line-height:1.45}
+.seen{list-style:none;margin:28px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:12px}
+.seen li{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:var(--panel)}
+.seen b{display:block;font-family:var(--display);font-variation-settings:"wdth" 112;font-weight:600;font-size:16px}
+.seen span{display:block;font-size:14px;color:var(--mute);margin-top:4px;line-height:1.45}
+.tbl{overflow-x:auto;margin-top:28px;border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:15px}
+th,td{text-align:left;padding:13px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);font-weight:400;background:var(--panel)}
+tr:last-child td{border-bottom:0}
+td:first-child{font-weight:600;white-space:nowrap}
+.steps{list-style:none;margin:28px 0 0;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;counter-reset:s}
+.steps li{counter-increment:s;border-top:2px solid var(--mdf-deep);padding-top:12px}
+.steps li::before{content:"Étape " counter(s);font-family:var(--mono);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mdf)}
+.steps b{display:block;font-family:var(--display);font-variation-settings:"wdth" 112;font-size:17px;margin-top:6px}
+.steps span{display:block;font-size:14.5px;color:var(--mute);margin-top:6px;line-height:1.5}
+.nocode{margin-top:28px;border:1px dashed var(--mdf-deep);border-radius:12px;padding:20px 22px;max-width:760px}
+.nocode .eyebrow{color:var(--warn)}
+.nocode p{margin:10px 0 0;color:#d3cec5}
+.skills{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.skills span{font-family:var(--mono);font-size:13px;border:1px solid var(--line);border-radius:99px;padding:6px 12px;color:#d3cec5}
+footer{margin-top:80px;border-top:1px solid var(--line);padding-block:26px 40px;font-family:var(--mono);font-size:12.5px;color:var(--mute);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+
+@media (max-width:900px){
+  .steps{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .grid2{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:720px){
+  body{font-size:16px}
+  .viewer{height:clamp(500px,82vh,720px)}
+  .orb{min-width:0;max-width:none;padding:7px 10px}
+  .orb .s,.orb .k{display:none}
+  .orb .t{font-size:12px;margin:0}
+  .disclaimer{max-width:calc(100% - 32px);font-size:10.5px;top:12px;bottom:auto}
+  .orb.dim{opacity:0;pointer-events:none}
+  .viewer.sel .disclaimer{opacity:0}
+  .hint{display:none}
+  .tools{left:max(16px,env(safe-area-inset-left,0px));justify-content:center}
+  .tools button{padding:8px 10px;font-size:12px}
+  .tools .lbl{display:none}
+  .panel{left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));top:auto;bottom:66px;width:auto;max-height:62%;transform:translateY(calc(100% + 90px))}
+  .photos{grid-template-columns:minmax(0,1fr)}
+  .photos img{aspect-ratio:4/3}
+  .steps{grid-template-columns:minmax(0,1fr)}
+}
+@media (prefers-reduced-motion:reduce){.panel{transition:none}.dot.on::after{animation:none}}
+</style>
+
+<header class="wrap top">
+  <h1>Mini-robot <span>2-1</span></h1>
+  <div class="meta"><span><b>Célian Crochat</b></span><span>Projet collectif de robotique</span><span>SolidWorks · Arduino</span></div>
+</header>
+
+<div class="viewer" id="viewer">
+  <canvas id="gl" aria-label="Maquette 3D du mini-robot, manipulable à la souris ou au doigt"></canvas>
+  <div id="loading">Chargement de la maquette 3D…</div>
+  <svg id="links" aria-hidden="true"></svg>
+  <div id="dots" aria-hidden="true"></div>
+  <div id="orbs"></div>
+  <p class="disclaimer"><b>Reconstitution 3D illustrative</b> inspirée du prototype photographié. Les fichiers SolidWorks originaux ne sont pas disponibles : proportions et emplacements estimés, non vérifiés.</p>
+  <p class="hint">Glisser pour tourner · molette ou pincer pour zoomer · cliquer un composant</p>
+  <div class="tools" role="toolbar" aria-label="Contrôles de la vue 3D">
+    <button id="bRot" type="button" aria-pressed="true" title="Rotation automatique"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 2.5v3h-3"/></svg><span class="lbl">Rotation auto</span></button>
+    <button id="bIn" type="button" title="Zoomer" aria-label="Zoomer">＋</button>
+    <button id="bOut" type="button" title="Dézoomer" aria-label="Dézoomer">－</button>
+    <button id="bReset" type="button" title="Vue générale"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><circle cx="8" cy="8" r="2"/></svg><span class="lbl">Vue générale</span></button>
+  </div>
+  <aside class="panel" id="panel" aria-live="polite" aria-label="Détail du composant"></aside>
+</div>
+
+<main class="wrap">
+  <section class="rep" id="projet">
+    <p class="eyebrow">Le projet</p>
+    <h2>Un robot, trois disciplines</h2>
+    <div class="prose">
+      <p>Ce mini-robot a été conçu et réalisé en groupe. Le projet associe la conception mécanique sous SolidWorks, l'intégration électronique et la programmation embarquée sur carte Arduino. L'objectif était de passer de la conception à l'assemblage, puis de faire fonctionner ensemble la structure, le câblage et le programme.</p>
+      <p>La maquette ci-dessus reprend la structure visible sur les photos : base ronde avec pare-chocs, plateau en panneau de bois percé, électronique fixée sur le plateau. Les quatre éléments décrits par l'auteur mais absents des photos disponibles (mini-perceuse, éclairage, capteur à ultrasons, capteur infrarouge) y sont placés à des emplacements plausibles, à titre indicatif.</p>
+    </div>
+  </section>
+
+  <section class="rep" id="photos">
+    <p class="eyebrow">Le prototype</p>
+    <h2>Ce que montrent les photos</h2>
+    <div class="photos">
+      <figure><img src="photos/1000003943.jpg" alt="Vue de trois quarts avant du robot : plateau en bois sur une base ronde grise avec pare-chocs" loading="lazy" width="1200" height="1600"><figcaption>Vue de trois quarts : le plateau repose sur une base ronde grise munie d'un pare-chocs avant.</figcaption></figure>
+      <figure><img src="photos/1000003944.jpg" alt="Vue de dessus du plateau : carte Arduino, plaque d'essai, module double pont en H et convertisseur de tension" loading="lazy" width="1200" height="1600"><figcaption>Vue de dessus : carte Arduino, plaque d'essai, module « Dual H-Bridge », convertisseur DC-DC.</figcaption></figure>
+      <figure><img src="photos/1000003945.jpg" alt="Seconde vue de dessus montrant le câblage entre les modules et le repère 2-1 écrit sur le plateau" loading="lazy" width="1200" height="1600"><figcaption>Le repère « 2-1 » écrit au feutre sur le plateau et les fils de liaison entre modules.</figcaption></figure>
+    </div>
+    <ul class="seen">
+      <li><b>Carte Arduino</b><span>La sérigraphie visible indique une Arduino Mega 2560. Une Arduino Uno a aussi été mentionnée : modèle final à confirmer.</span></li>
+      <li><b>Module « Dual H-Bridge »</b><span>Double pont en H avec dissipateur, utilisé en général pour commander le sens et la vitesse de deux moteurs.</span></li>
+      <li><b>Plaque d'essai</b><span>Breadboard centrale qui sert de point de répartition pour les fils de liaison.</span></li>
+      <li><b>Convertisseur DC-DC</b><span>Module abaisseur de tension tenu dans un support en bois. Condensateurs 100 µF 50 V et 220 µF 35 V lisibles.</span></li>
+      <li><b>Plateau en MDF</b><span>Panneau brun percé de trous de fixation, aux bords brunis qui évoquent une découpe laser, monté sur entretoises.</span></li>
+      <li><b>Base ronde</b><span>Châssis gris avec pare-chocs avant et roues noires sur les côtés. Chenilles indiquées par l'auteur.</span></li>
+    </ul>
+  </section>
+
+  <section class="rep" id="statut">
+    <p class="eyebrow">Fiabilité des informations</p>
+    <h2>Confirmé, théorique, à vérifier</h2>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Composant</th><th>Source</th><th>Emplacement dans la maquette</th><th>Fonctionnement réel</th></tr></thead>
+        <tbody>
+          <tr><td>Structure mécanique</td><td><span class="chip c-ok">Photos</span></td><td>D'après les photos, proportions estimées</td><td><span class="chip c-warn">Dimensions à vérifier</span></td></tr>
+          <tr><td>Mini-perceuse</td><td><span class="chip c-ok">Auteur</span></td><td>À l'avant, orientée vers l'avant</td><td><span class="chip c-warn">À confirmer</span></td></tr>
+          <tr><td>Éclairage</td><td><span class="chip c-ok">Auteur</span></td><td>Au sommet, au-dessus de tous les composants</td><td><span class="chip c-warn">À confirmer</span></td></tr>
+          <tr><td>Capteur à ultrasons</td><td><span class="chip c-ok">Auteur</span></td><td>À l'avant, position estimée</td><td><span class="chip c-warn">À confirmer</span></td></tr>
+          <tr><td>Capteur infrarouge</td><td><span class="chip c-ok">Auteur</span></td><td>À l'avant, position estimée</td><td><span class="chip c-warn">À confirmer</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="rep" id="etapes">
+    <p class="eyebrow">Démarche</p>
+    <h2>De la CAO aux essais</h2>
+    <ol class="steps">
+      <li><b>Conception</b><span>Modélisation des pièces et de l'assemblage sous SolidWorks.</span></li>
+      <li><b>Fabrication</b><span>Découpe du plateau et des supports, assemblage sur la base.</span></li>
+      <li><b>Électronique</b><span>Fixation des modules et câblage vers la carte Arduino.</span></li>
+      <li><b>Programmation</b><span>Écriture des programmes Arduino qui pilotent les composants.</span></li>
+      <li><b>Essais</b><span>Vérification des connexions, du comportement et corrections.</span></li>
+    </ol>
+  </section>
+
+  <section class="rep" id="code">
+    <p class="eyebrow">Programmation</p>
+    <h2>Code Arduino</h2>
+    <div class="nocode">
+      <p class="eyebrow">Code original non disponible</p>
+      <p>Les programmes écrits par le groupe n'ont pas pu être récupérés. Le fonctionnement de chaque composant reste donc à confirmer dans les sources du projet : la page décrit leur principe général, sans affirmer comment ils étaient câblés ou commandés.</p>
+      <p>Pour compléter ce compte rendu, il faudrait retrouver les fichiers .ino, un schéma de câblage et les fichiers SolidWorks.</p>
+    </div>
+  </section>
+
+  <section class="rep" id="competences">
+    <p class="eyebrow">Bilan</p>
+    <h2>Compétences mobilisées</h2>
+    <div class="prose"><p>Le projet a demandé de coordonner plusieurs parties techniques au sein d'une équipe : faire en sorte que les pièces conçues, le câblage et le programme s'intègrent dans un même prototype.</p></div>
+    <div class="skills"><span>CAO SolidWorks</span><span>Intégration électronique</span><span>Câblage</span><span>Programmation Arduino</span><span>Tests et dépannage</span><span>Travail en équipe</span><span>Gestion de projet technique</span></div>
+  </section>
+
+  <footer><span>Projet collectif réalisé dans un cadre pédagogique. Ce compte rendu n'attribue pas à une seule personne le travail du groupe.</span><span>Maquette 3D illustrative · Three.js</span></footer>
+</main>
+
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+/* ================= données des composants ================= */
+const NA = "Fonctionnement à confirmer dans les sources du projet.";
+const C = [
+ { key:'drill', k:'01', t:'MINI-PERCEUSE', s:'Outil mécanique installé à l’avant', short:'Perceuse',
+   anchor:[0,8.3,19.6], focus:{target:[0,8,14], off:[13,6,15]},
+   lead:'Outil rotatif miniature fixé sous l’avant du plateau.',
+   ok:['Présente sur le robot et orientée uniquement vers l’avant (description de l’auteur).','Absente des photos disponibles : sa forme et sa fixation sont représentées à titre indicatif.'],
+   info:'Une mini-perceuse est entraînée par un petit moteur à courant continu. Le mandrin serre un foret ou un embout qui tourne à grande vitesse pour percer, poncer ou graver.',
+   warn:['Modèle, tension et puissance.','Mode de commande : interrupteur ou sortie de la carte via un module de puissance.','Mode de fixation sur le châssis.'],
+   note:'Dans la maquette, la rotation du foret quand le composant est sélectionné est une animation illustrative.' },
+ { key:'light', k:'02', t:'ÉCLAIRAGE', s:'Lumière au sommet de la structure', short:'Éclairage',
+   anchor:[6,26.2,-10], focus:{target:[5,22,-9], off:[12,7,15]},
+   lead:'Source lumineuse placée tout en haut du robot.',
+   ok:['Située au-dessus de tous les autres composants (description de l’auteur).','Absente des photos disponibles : le support vertical est une hypothèse de la maquette.'],
+   info:'Une source lumineuse, souvent une LED, peut éclairer la zone de travail devant le robot ou signaler son état. Une LED se commande par une sortie numérique, avec une résistance de limitation de courant.',
+   warn:['Type de source (LED, lampe) et alimentation.','Commande : permanente, par interrupteur ou par le programme.','Rôle exact dans le projet.'],
+   note:'Le halo visible dans la scène 3D est un effet d’éclairage de la maquette. Il ne représente pas le fonctionnement électrique réel de la lumière.' },
+ { key:'us', k:'03', t:'CAPTEUR ULTRASON', s:'Principe de mesure de distance par ultrasons', short:'Ultrason',
+   anchor:[0,12.6,15.9], focus:{target:[0,12,14], off:[-9,4,15]},
+   lead:'Module à deux transducteurs placé à l’avant du plateau.',
+   ok:['Un capteur à ultrasons équipe l’avant du robot (description de l’auteur).','Le module à deux cylindres est une représentation courante, utilisée ici à titre indicatif : le modèle exact est inconnu.'],
+   info:'Un transducteur émet une brève salve d’ultrasons, souvent autour de 40 kHz, et l’autre capte l’écho renvoyé par un obstacle. Le temps aller-retour t donne la distance : d = v × t / 2, avec v ≈ 343 m/s dans l’air à 20 °C.',
+   warn:['Modèle du module et broches utilisées.','Utilisation réelle de la mesure dans le programme : non confirmée sans le câblage ni le code.'],
+   note:null },
+ { key:'ir', k:'04', t:'CAPTEUR INFRAROUGE', s:'Principe de détection infrarouge', short:'Infrarouge',
+   anchor:[-5.6,4.6,15.9], focus:{target:[-5,5,13], off:[-13,3,13]},
+   lead:'Petit module électronique à deux éléments optiques, à l’avant.',
+   ok:['Un capteur infrarouge est placé à l’avant du robot (description de l’auteur).','Son emplacement exact sur la face avant n’est pas connu : celui de la maquette est estimé.'],
+   info:'Une LED infrarouge émet une lumière invisible et un phototransistor mesure la part réfléchie par une surface proche. Le module en déduit la présence d’un obstacle, ou un contraste entre surface claire et surface foncée.',
+   warn:['Modèle du module.','Fonction précise : détection d’obstacle, suivi de ligne ou autre.','Câblage vers la carte.'],
+   note:null },
+ { key:'struct', k:'05', t:'STRUCTURE MÉCANIQUE', s:'Châssis, panneaux et plateforme', short:'Structure',
+   anchor:[10.6,10.6,2], focus:{target:[0,9,0], off:[24,20,26]},
+   lead:'Base ronde, plateau en MDF sur entretoises et électronique embarquée.',
+   ok:['Plateau en panneau de bois brun, percé de trous de fixation, aux bords brunis qui évoquent une découpe laser (photos).','Base ronde grise avec pare-chocs avant ; roues noires visibles sur les côtés (photos). Déplacement sur chenilles selon l’auteur.','Sur le plateau : carte Arduino (sérigraphie Mega 2560), module « Dual H-Bridge », plaque d’essai et convertisseur DC-DC dans un support en bois (photos).'],
+   info:'Le plateau porte et sépare l’électronique de la motorisation. Les entretoises laissent de la place aux câbles, et la disposition en façade permet de dégager la vue des capteurs vers l’avant.',
+   warn:['Dimensions réelles et épaisseur du panneau.','Fichiers SolidWorks d’origine.','Carte utilisée au final (Mega visible sur les photos, Uno mentionnée).'],
+   note:null }
+];
+
+/* ================= renderer / scène ================= */
+const viewer = document.getElementById('viewer');
+const canvas = document.getElementById('gl');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+
+const camera = new THREE.PerspectiveCamera(36, 1, 0.5, 600);
+const HOME = { pos:new THREE.Vector3(34,30,46), target:new THREE.Vector3(0,10,0) };
+if(innerWidth<720) HOME.pos.multiplyScalar(1.45);
+camera.position.copy(HOME.pos);
+const controls = new OrbitControls(camera, canvas);
+controls.target.copy(HOME.target);
+controls.enableDamping = true; controls.dampingFactor = .08;
+controls.minDistance = 14; controls.maxDistance = 120;
+controls.maxPolarAngle = Math.PI*0.49;
+controls.autoRotate = !reduce; controls.autoRotateSpeed = .7;
+controls.enablePan = false;
+
+// studio lights
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x2a2018, .55));
+const key = new THREE.DirectionalLight(0xfff3e4, 2.2);
+key.position.set(30,55,25); key.castShadow = true;
+key.shadow.mapSize.set(2048,2048);
+Object.assign(key.shadow.camera,{left:-35,right:35,top:35,bottom:-35,near:10,far:140});
+key.shadow.bias = -0.0004; key.shadow.normalBias = .03;
+scene.add(key);
+const rim = new THREE.DirectionalLight(0x9cc4ff, 1.1); rim.position.set(-40,25,-35); scene.add(rim);
+
+// sol technique
+const ground = new THREE.Mesh(new THREE.CircleGeometry(60,64), new THREE.ShadowMaterial({opacity:.35}));
+ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; scene.add(ground);
+const grid = new THREE.GridHelper(120, 48, 0x3a4552, 0x232b35);
+grid.material.transparent = true; grid.material.opacity = .45; grid.position.y = .01; scene.add(grid);
+
+/* ================= matériaux ================= */
+function canvasTex(w,h,draw,repeat){ const c=document.createElement('canvas'); c.width=w; c.height=h; draw(c.getContext('2d'),w,h); const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8; if(repeat){t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(...repeat);} return t; }
+const mdfTex = canvasTex(512,512,(g,w,h)=>{ g.fillStyle='#b48a5e'; g.fillRect(0,0,w,h);
+  for(let i=0;i<9000;i++){ const v=Math.random(); g.fillStyle=v>.5?`rgba(90,58,30,${Math.random()*.16})`:`rgba(235,200,155,${Math.random()*.14})`; g.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*2,1+Math.random()*2); } },[3,3]);
+const M = {
+  mdf: new THREE.MeshStandardMaterial({ map:mdfTex, roughness:.82, metalness:0 }),
+  mdfEdge: new THREE.MeshStandardMaterial({ color:0x4a2d17, roughness:.9 }),
+  plastic: new THREE.MeshStandardMaterial({ color:0x9fa3a9, roughness:.55 }),
+  plasticDark: new THREE.MeshStandardMaterial({ color:0x6d7178, roughness:.6 }),
+  rubber: new THREE.MeshStandardMaterial({ color:0x16181b, roughness:.95 }),
+  steel: new THREE.MeshStandardMaterial({ color:0xd5d8dc, roughness:.28, metalness:1 }),
+  brass: new THREE.MeshStandardMaterial({ color:0xc9a35a, roughness:.35, metalness:1 }),
+  pcbGreen: new THREE.MeshStandardMaterial({ color:0x0f6d64, roughness:.5 }),
+  pcbBlue: new THREE.MeshStandardMaterial({ color:0x1d3f9a, roughness:.5 }),
+  pcbBlack: new THREE.MeshStandardMaterial({ color:0x15171a, roughness:.5 }),
+  black: new THREE.MeshStandardMaterial({ color:0x111111, roughness:.4 }),
+  chip: new THREE.MeshStandardMaterial({ color:0x1b1b1d, roughness:.35 }),
+  white: new THREE.MeshStandardMaterial({ color:0xeeece6, roughness:.7 }),
+  termGreen: new THREE.MeshStandardMaterial({ color:0x2fae4f, roughness:.5 }),
+  termRed: new THREE.MeshStandardMaterial({ color:0xc62d3b, roughness:.5 }),
+  termBlue: new THREE.MeshStandardMaterial({ color:0x2f6fd8, roughness:.5 }),
+  cap: new THREE.MeshStandardMaterial({ color:0x2a2b30, roughness:.4, metalness:.3 }),
+  drillBody: new THREE.MeshStandardMaterial({ color:0x2d3138, roughness:.45 }),
+  drillRing: new THREE.MeshStandardMaterial({ color:0xd8742a, roughness:.45 }),
+  mesh: new THREE.MeshStandardMaterial({ color:0x2a2c30, roughness:.8, metalness:.4 }),
+  irClear: new THREE.MeshStandardMaterial({ color:0xbfc8ff, roughness:.15, transparent:true, opacity:.85, emissive:0x6a3cff, emissiveIntensity:.25 }),
+};
+const wireMats = [0x2fbf71,0xe8892f,0xf2f0ea,0x8b5a2b,0x1d1d1d,0xd13a3a].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:.5}));
+
+/* ================= construction ================= */
+const robot = new THREE.Group(); scene.add(robot);
+const groups = {}; C.forEach(c=>{ const g=new THREE.Group(); g.userData.key=c.key; groups[c.key]=g; robot.add(g); });
+function mesh(geo, mat, parent, pos=[0,0,0], rot=[0,0,0]){ const m=new THREE.Mesh(geo,mat); m.position.set(...pos); m.rotation.set(...rot); m.castShadow=true; m.receiveShadow=true; parent.add(m); return m; }
+const box=(x,y,z)=>new THREE.BoxGeometry(x,y,z);
+const cyl=(r1,r2,h,s=24)=>new THREE.CylinderGeometry(r1,r2,h,s);
+const S = groups.struct;
+
+// --- base ronde grise
+const BASE_Y0=2.2, BASE_H=4.6, BASE_R=14.2;
+mesh(cyl(BASE_R,BASE_R,BASE_H,72), M.plastic, S, [0,BASE_Y0+BASE_H/2,-1]);
+mesh(cyl(BASE_R-.6,BASE_R-.6,.25,72), M.plasticDark, S, [0,BASE_Y0+BASE_H+.12,-1]);
+// pare-chocs avant (anneau partiel)
+{ const sh=new THREE.Shape(); const a0=Math.PI*.12, a1=Math.PI*.88, ro=15.3, ri=14.35;
+  sh.absarc(0,0,ro,a0,a1,false); sh.absarc(0,0,ri,a1,a0,true);
+  const g=new THREE.ExtrudeGeometry(sh,{depth:3.2,bevelEnabled:true,bevelThickness:.15,bevelSize:.15,bevelSegments:2,curveSegments:48});
+  const m=mesh(g,M.plastic,S,[0,BASE_Y0+.5,-1],[-Math.PI/2,0,0]); m.rotation.z=0;
+  // shape y -> world -z : on veut l'arc vers +z, donc on retourne
+  m.rotation.set(Math.PI/2,0,0); m.position.y=BASE_Y0+3.9; }
+// fente avant (comme sur la photo)
+mesh(box(4,1.2,.4), M.rubber, S, [0,BASE_Y0+1.8,13.25]);
+
+// --- chenilles
+function track(x){
+  const L=19, R=2.5, W=2.6, g=new THREE.Group();
+  const sh=new THREE.Shape(); sh.absarc(-L/2+R,0,R,Math.PI/2,Math.PI*1.5,false); sh.lineTo(L/2-R,-R); sh.absarc(L/2-R,0,R,-Math.PI/2,Math.PI/2,false); sh.closePath();
+  const hole=new THREE.Path(); const r2=R-.55; hole.absarc(-L/2+R,0,r2,Math.PI/2,Math.PI*1.5,false); hole.lineTo(L/2-R,-r2); hole.absarc(L/2-R,0,r2,-Math.PI/2,Math.PI/2,false); hole.closePath(); sh.holes.push(hole);
+  const tex=canvasTex(64,512,(c,w,h)=>{c.fillStyle='#1a1c1f';c.fillRect(0,0,w,h);c.fillStyle='#2c2f34';for(let y=0;y<h;y+=16)c.fillRect(0,y,w,7);});
+  tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(1,4);
+  const tm=new THREE.MeshStandardMaterial({map:tex,roughness:.95});
+  mesh(new THREE.ExtrudeGeometry(sh,{depth:W,bevelEnabled:false,curveSegments:24}),[M.rubber,tm],g,[0,0,-W/2]);
+  [-L/2+R,0,L/2-R].forEach((z,i)=>{ mesh(cyl(i===1?1.4:1.9,i===1?1.4:1.9,W-.3,28),M.plasticDark,g,[z,0,0],[Math.PI/2,0,0]); mesh(cyl(.6,.6,W,16),M.steel,g,[z,0,0],[Math.PI/2,0,0]); });
+  g.rotation.y=-Math.PI/2; g.position.set(x,R,-1); S.add(g);
+}
+track(-16.3); track(16.3);
+
+// --- entretoises
+const PL_Y=10.2, PL_T=.45;
+[[-8.5,-10],[8.5,-10],[-8.5,9],[8.5,9],[0,-12],[0,10.5]].forEach(([x,z])=>{ mesh(cyl(.32,.32,PL_Y-(BASE_Y0+BASE_H),12),M.brass,S,[x,(PL_Y+BASE_Y0+BASE_H)/2,z]); mesh(cyl(.5,.5,.3,6),M.steel,S,[x,PL_Y+PL_T+.15,z]); });
+
+// --- plateau MDF (coins arrière r=2, avant r=7), avec trous
+{ const x0=-11,x1=11,zb=-14,zf=15.5,rb=2,rf=7; const sh=new THREE.Shape();
+  const P=(x,z)=>[x,-z];
+  sh.moveTo(...P(x0+rb,zb)); sh.lineTo(...P(x1-rb,zb)); sh.quadraticCurveTo(...P(x1,zb),...P(x1,zb+rb));
+  sh.lineTo(...P(x1,zf-rf)); sh.quadraticCurveTo(...P(x1,zf),...P(x1-rf,zf));
+  sh.lineTo(...P(x0+rf,zf)); sh.quadraticCurveTo(...P(x0,zf),...P(x0,zf-rf));
+  sh.lineTo(...P(x0,zb+rb)); sh.quadraticCurveTo(...P(x0,zb),...P(x0+rb,zb));
+  [[-3,-11],[4,-12],[9,-11],[-1,-6],[5,-7],[9.5,-4],[-4,7],[1,7.5],[-6,11.5],[3,12.5],[6,6],[-9.5,4],[9.5,1],[-2,13.5],[7,-1]].forEach(([x,z])=>{ const h=new THREE.Path(); h.absarc(...P(x,z),.42,0,Math.PI*2,true); sh.holes.push(h); });
+  const g=new THREE.ExtrudeGeometry(sh,{depth:PL_T,bevelEnabled:false,curveSegments:24});
+  // UV planaires pour la texture
+  const pos=g.attributes.position, uv=g.attributes.uv; for(let i=0;i<pos.count;i++){ uv.setXY(i,(pos.getX(i)+11)/22,(pos.getY(i)+16)/32); }
+  mesh(g,[M.mdf,M.mdfEdge],S,[0,PL_Y,0],[-Math.PI/2,0,0]);
+  // repère « 2-1 » écrit au feutre
+  const t=canvasTex(256,128,(c,w,h)=>{c.clearRect(0,0,w,h);c.fillStyle='rgba(20,20,24,.85)';c.font='italic 600 84px "Segoe Print","Comic Sans MS",cursive';c.textAlign='center';c.textBaseline='middle';c.fillText('2-1',w/2,h/2+4);});
+  const lab=new THREE.Mesh(new THREE.PlaneGeometry(5,2.5),new THREE.MeshStandardMaterial({map:t,transparent:true,roughness:.8}));
+  lab.rotation.x=-Math.PI/2; lab.position.set(2,PL_Y+PL_T+.01,-10.8); S.add(lab);
+}
+const TOP=PL_Y+PL_T;
+
+// --- carte Arduino (Mega) arrière gauche
+{ const g=new THREE.Group(); g.position.set(-7.2,TOP+.5,-7.5); S.add(g);
+  mesh(box(5.3,.16,10.2),M.pcbGreen,g);
+  mesh(box(.25,.85,8.6),M.black,g,[-2.35,.5,.2]); mesh(box(.25,.85,8.6),M.black,g,[2.35,.5,.2]); mesh(box(4,.85,.5),M.black,g,[0,.5,4.7]);
+  mesh(box(1.2,1.1,1.6),M.steel,g,[-1.2,.6,-4.6]); mesh(box(.9,1.1,1.4),M.black,g,[1.6,.6,-4.6]);
+  mesh(box(1.6,.2,1.6),M.chip,g,[.4,.18,-.6],[0,Math.PI/4,0]); mesh(cyl(.3,.3,.7,16),M.cap,g,[1.4,.45,-2.6]);
+  [[-2.4,-4.9],[2.4,-4.9],[-2.4,4.9],[2.4,4.9]].forEach(([x,z])=>mesh(cyl(.4,.4,.5,12),M.brass,g,[x,-.3,z]));
+}
+// --- plaque d'essai
+{ const g=new THREE.Group(); g.position.set(0,TOP+.42,-.6); S.add(g);
+  const t=canvasTex(1024,340,(c,w,h)=>{c.fillStyle='#f1efe8';c.fillRect(0,0,w,h);c.fillStyle='#d23b3b';c.fillRect(0,14,w,4);c.fillRect(0,h-40,w,4);c.fillStyle='#3a62c9';c.fillRect(0,36,w,4);c.fillRect(0,h-18,w,4);c.fillStyle='#d9d6cc';c.fillRect(0,h/2-8,w,16);c.fillStyle='#4b4a46';for(let x=12;x<w;x+=16){for(const y of [24,30])c.fillRect(x,y,4,4);for(let y=60;y<h/2-14;y+=16)c.fillRect(x,y,4,4);for(let y=h/2+20;y<h-50;y+=16)c.fillRect(x,y,4,4);for(const y of [h-30,h-24])c.fillRect(x,y,4,4);}});
+  const top=new THREE.MeshStandardMaterial({map:t,roughness:.7});
+  mesh(box(16.5,.85,5.5),[M.white,M.white,top,M.white,M.white,M.white],g);
+  mesh(box(1.2,.5,.9),M.chip,g,[-1.5,.6,0]);
+}
+// --- module double pont en H, avant gauche
+{ const g=new THREE.Group(); g.position.set(-6.8,TOP+.5,7.6); S.add(g);
+  mesh(box(4.4,.16,4.4),M.pcbBlue,g);
+  for(let i=0;i<7;i++) mesh(box(.12,1.4,1.6),M.black,g,[-1.1+i*.36,.8,-1]);
+  mesh(box(2.6,.4,1.7),M.black,g,[0,.3,-1]);
+  mesh(box(.9,.8,1.1),M.termGreen,g,[-1.75,.5,.3]); mesh(box(.9,.8,1.1),M.termRed,g,[1.75,.5,.3]); mesh(box(1.7,.8,.9),M.termBlue,g,[.2,.5,1.6]);
+  for(let i=0;i<6;i++) mesh(box(.22,.3,.22),M.black,g,[-1.4+i*.5,.25,1.95]);
+}
+// --- convertisseur DC-DC dans son support bois, avant droit
+{ const g=new THREE.Group(); g.position.set(7.4,TOP,8.6); S.add(g);
+  mesh(box(5,.4,3.2),M.mdf,g,[0,.2,0]); mesh(box(.4,2.6,3.2),M.mdf,g,[-2.5,1.3,0]); mesh(box(.4,2.6,3.2),M.mdf,g,[2.5,1.3,0]);
+  const p=new THREE.Group(); p.position.set(0,1.9,0); g.add(p);
+  mesh(box(4.4,.16,2.2),M.pcbBlue,p);
+  mesh(cyl(.42,.42,1,20),M.cap,p,[-1.4,.55,-.4]); mesh(cyl(.5,.5,1.1,20),M.cap,p,[1.4,.6,.3]);
+  mesh(box(1.1,.6,1.1),M.black,p,[-.1,.38,.2]); mesh(box(.7,.6,.45),M.termBlue,p,[.9,.38,-.7]);
+  mesh(cyl(.06,.06,4.2,8),M.steel,g,[0,1.6,-1.9],[0,0,Math.PI/2]);
+}
+// --- câbles
+function wire(pts,mi){ const c=new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p))); const m=new THREE.Mesh(new THREE.TubeGeometry(c,48,.075,6,false),wireMats[mi]); m.castShadow=true; S.add(m); }
+const T2=TOP+.9;
+wire([[-5,T2+.3,-4],[-3,T2+4,-3],[-1,T2+2,-1.5],[1,T2,-.8]],0);
+wire([[-6,T2+.3,-3],[-8,T2+3,1],[-7,T2+1.5,5],[-6.5,T2,6.5]],1);
+wire([[-4.6,T2+.3,-5],[0,T2+5,-6],[4,T2+3,-3],[5,T2,-1.2]],2);
+wire([[3,T2,-1],[6,T2+3,3],[7,T2+2.5,6],[7.2,TOP+2.4,7.8]],1);
+wire([[-2,T2,.4],[-4,T2+2.5,3],[-5.5,T2+1,6]],3);
+wire([[6,T2,-1.5],[10,T2+2,-2],[11.5,T2-.5,-6],[12.2,TOP-1.5,-8]],4);
+wire([[5.8,T2,-1.6],[9.6,T2+2.4,-2.4],[11.2,T2-.2,-6.4],[11.9,TOP-1.3,-8.6]],5);
+wire([[1,T2,-1.6],[2,T2+6,-5],[1,T2+4,-9],[2,T2,-11]],2);
+wire([[2,T2,-1.6],[3.5,T2+7,-4.5],[3.5,T2+5,-9.5],[3.6,T2,-11.3]],3);
+
+// --- structure verticale + éclairage au sommet
+{ const L=groups.light; const tx=6, tz=-10, h=13.2;
+  mesh(box(.45,h,4),M.mdf,S,[tx-2.2,TOP+h/2,tz]); mesh(box(.45,h,4),M.mdf,S,[tx+2.2,TOP+h/2,tz]);
+  mesh(box(4.9,.45,4),M.mdf,S,[tx,TOP+h+.22,tz]); mesh(box(4,.45,.45),M.mdf,S,[tx,TOP+h*.55,tz-1.8]);
+  const y0=TOP+h+.45;
+  mesh(cyl(1.25,1.4,.9,32),M.black,L,[tx,y0+.45,tz]);
+  mesh(cyl(1.05,1.05,.25,32),M.steel,L,[tx,y0+.98,tz]);
+  const domeMat=new THREE.MeshStandardMaterial({color:0xfff1d2,emissive:0xffb54d,emissiveIntensity:1.6,roughness:.2,transparent:true,opacity:.95});
+  const dome=mesh(new THREE.SphereGeometry(1,32,16,0,Math.PI*2,0,Math.PI/2),domeMat,L,[tx,y0+1.1,tz]); dome.castShadow=false;
+  const pl=new THREE.PointLight(0xffb85a,40,40,2); pl.position.set(tx,y0+2,tz); L.add(pl);
+  const glow=canvasTex(128,128,(c,w,h)=>{const r=c.createRadialGradient(w/2,h/2,0,w/2,h/2,w/2);r.addColorStop(0,'rgba(255,200,120,.9)');r.addColorStop(.35,'rgba(255,170,80,.25)');r.addColorStop(1,'rgba(255,160,60,0)');c.fillStyle=r;c.fillRect(0,0,w,h);});
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:glow,depthWrite:false,blending:THREE.AdditiveBlending,transparent:true})); sp.scale.set(7,7,1); sp.position.set(tx,y0+1.5,tz); L.add(sp);
+  L.userData.dome=domeMat; L.userData.light=pl; L.userData.glow=sp;
+  wire([[tx-1.8,TOP+.4,tz+2.2],[tx-1.6,TOP+6,tz+2.3],[tx-1.6,TOP+h-1,tz+2.2],[tx-.6,y0+.4,tz+1.1]],5);
+}
+
+// --- capteur à ultrasons sur l'avant du plateau
+{ const U=groups.us; const g=new THREE.Group(); g.position.set(0,TOP,14.2); U.add(g);
+  mesh(box(5,.4,1.4),M.mdf,g,[0,.2,-.4]); mesh(box(5,2.9,.4),M.mdf,g,[0,1.45,-.9]);
+  const pcb=new THREE.Group(); pcb.position.set(0,2.15,-.6); g.add(pcb);
+  mesh(box(4.5,2.05,.16),M.pcbBlue,pcb);
+  [-1.3,1.3].forEach(x=>{ mesh(cyl(.8,.8,1.25,32),M.steel,pcb,[x,0,.7],[Math.PI/2,0,0]); mesh(cyl(.66,.66,.04,32),M.mesh,pcb,[x,0,1.34],[Math.PI/2,0,0]); });
+  mesh(box(.9,.35,.3),M.steel,pcb,[0,.6,.2]);
+  for(let i=0;i<4;i++) mesh(box(.12,.6,.12),M.steel,pcb,[-.45+i*.3,-1.25,0]);
+}
+// --- capteur infrarouge sur la face avant du pare-chocs
+{ const I=groups.ir; const g=new THREE.Group(); const x=-5.6, z=Math.sqrt(15.45**2-x*x)-1; g.position.set(x,4.6,z); g.rotation.y=Math.atan2(x,z+1); I.add(g);
+  mesh(box(3.3,1.5,.16),M.pcbBlack,g);
+  mesh(cyl(.3,.3,.9,20),M.irClear,g,[-.7,0,.5],[Math.PI/2,0,0]);
+  mesh(cyl(.3,.3,.9,20),M.black,g,[.05,0,.5],[Math.PI/2,0,0]);
+  mesh(box(.55,.55,.35),M.termBlue,g,[1.05,.2,.2]); mesh(cyl(.12,.12,.06,10),M.steel,g,[1.05,.2,.4],[Math.PI/2,0,0]);
+  for(let i=0;i<3;i++) mesh(box(.1,.45,.1),M.steel,g,[-.4+i*.4,-.95,0]);
+  mesh(cyl(.09,.09,.04,10),new THREE.MeshStandardMaterial({color:0xff3b3b,emissive:0xff2020,emissiveIntensity:1}),g,[1.2,-.45,.1],[Math.PI/2,0,0]);
+}
+// --- mini-perceuse sous l'avant du plateau
+let bit;
+{ const D=groups.drill; const y=8.3;
+  mesh(box(3.6,1.6,1.2),M.mdf,D,[0,PL_Y-.8,10.4]); mesh(box(3.6,1.6,1.2),M.mdf,D,[0,PL_Y-.8,14.2]);
+  mesh(cyl(1.4,1.4,6.5,32),M.drillBody,D,[0,y,12.2],[Math.PI/2,0,0]);
+  mesh(cyl(1.42,1.42,.7,32),M.drillRing,D,[0,y,13.6],[Math.PI/2,0,0]);
+  mesh(cyl(1.46,1.46,.5,32),M.steel,D,[0,y,10.4],[Math.PI/2,0,0]); mesh(cyl(1.46,1.46,.5,32),M.steel,D,[0,y,14.2],[Math.PI/2,0,0]);
+  mesh(cyl(1.1,1.4,.9,32),M.drillBody,D,[0,y,15.9],[Math.PI/2,0,0]);
+  const chuck=new THREE.Group(); chuck.position.set(0,y,17.3); D.add(chuck);
+  mesh(cyl(.42,.8,1.6,24),M.steel,chuck,[0,0,0],[Math.PI/2,0,0]);
+  bit=new THREE.Group(); bit.position.set(0,y,17.3); D.add(bit);
+  mesh(cyl(.17,.17,3.4,12),M.steel,bit,[0,0,2.4],[Math.PI/2,0,0]);
+  mesh(new THREE.ConeGeometry(.17,.4,12),M.steel,bit,[0,0,4.3],[Math.PI/2,0,0]);
+  for(let i=0;i<10;i++) mesh(box(.42,.05,.05),M.steel,bit,[0,0,1+i*.3],[0,0,i*.6]);
+  wire([[0,y+1.2,9.4],[0,PL_Y-.4,8],[-1.5,PL_Y-.3,6]],0);
+}
+
+// matériaux propres à chaque groupe (pour la surbrillance)
+Object.values(groups).forEach(g=>{ const map=new Map(); g.traverse(o=>{ if(!o.isMesh) return; const clone=m=>{ if(!map.has(m)) map.set(m,m.clone()); return map.get(m); }; o.material=Array.isArray(o.material)?o.material.map(clone):clone(o.material); }); g.userData.mats=[...map.values()].filter(m=>'emissive' in m); g.userData.mats.forEach(m=>{ m.userData.e0=m.emissive.clone(); m.userData.i0=m.emissiveIntensity; }); });
+
+/* ================= UI : pop-ups orbitaux ================= */
+const orbsEl=document.getElementById('orbs'), dotsEl=document.getElementById('dots'), svg=document.getElementById('links'), panel=document.getElementById('panel');
+const UI = C.map((c,i)=>{
+  const b=document.createElement('button'); b.type='button'; b.className='orb'; b.dataset.key=c.key;
+  b.innerHTML=`<span class="k">${c.k}</span><span class="t">${c.t}</span><span class="s">${c.s}</span>`;
+  b.setAttribute('aria-label',`${c.t} : ${c.s}`);
+  b.addEventListener('click',()=>select(c.key)); orbsEl.appendChild(b);
+  const d=document.createElement('div'); d.className='dot'; dotsEl.appendChild(d);
+  const l=document.createElementNS('http://www.w3.org/2000/svg','line'); svg.appendChild(l);
+  return { c, b, d, l, a:new THREE.Vector3(...c.anchor), phase:i/C.length*Math.PI*2 - Math.PI/2 };
+});
+const mobileQ=matchMedia('(max-width:720px)');
+function relabel(){ UI.forEach(u=>u.b.querySelector('.t').textContent=mobileQ.matches?u.c.short:u.c.t); }
+mobileQ.addEventListener('change',relabel); relabel();
+
+/* ================= panneau détail ================= */
+function renderPanel(c){
+  panel.innerHTML=`<p class="eyebrow">${c.k} · composant</p><h2>${c.t.charAt(0)+c.t.slice(1).toLowerCase()}</h2><p class="lead">${c.lead}</p>
+  <div class="blk"><span class="chip c-ok">Visible ou confirmé</span>${c.ok.map(x=>`<p>${x}</p>`).join('')}</div>
+  <div class="blk"><span class="chip c-info">Principe théorique</span><p>${c.info}</p>${c.note?`<p style="color:var(--mute)">${c.note}</p>`:''}</div>
+  <div class="blk"><span class="chip c-warn">À vérifier</span><ul>${c.warn.map(x=>`<li>${x}</li>`).join('')}</ul></div>
+  <p class="code"><b>Code Arduino :</b> code original non disponible. ${NA}</p>
+  <button type="button" class="back" id="bBack">← Vue générale</button>`;
+  panel.querySelector('#bBack').addEventListener('click',reset);
+}
+
+/* ================= caméra & sélection ================= */
+let selected=null, tween=null, userRot=!reduce;
+const bRot=document.getElementById('bRot');
+function tweenTo(pos,target,dur=1100){ tween={ p0:camera.position.clone(), t0:controls.target.clone(), p1:pos.clone(), t1:target.clone(), s:performance.now(), dur:reduce?1:dur }; }
+function select(k){
+  if(selected===k){ reset(); return; }
+  selected=k; const c=C.find(x=>x.key===k);
+  controls.autoRotate=false;
+  const t=new THREE.Vector3(...c.focus.target), o=new THREE.Vector3(...c.focus.off).multiplyScalar(viewer.clientWidth<720?2.1:1.75);
+  // garder le côté où se trouve la caméra pour un mouvement doux
+  if(camera.position.x*o.x<0 && k!=='ir' && k!=='us') o.x*=-1;
+  tweenTo(t.clone().add(o),t);
+  renderPanel(c); panel.classList.add('open'); viewer.classList.add('sel');
+  UI.forEach(u=>{ const on=u.c.key===k; u.b.classList.toggle('on',on); u.b.classList.toggle('dim',!on); u.d.classList.toggle('on',on); u.l.classList.toggle('on',on); u.b.setAttribute('aria-pressed',on); });
+}
+function reset(){
+  selected=null; panel.classList.remove('open'); viewer.classList.remove('sel');
+  UI.forEach(u=>{ u.b.classList.remove('on','dim'); u.d.classList.remove('on'); u.l.classList.remove('on'); u.b.setAttribute('aria-pressed','false'); });
+  tweenTo(HOME.pos,HOME.target); controls.autoRotate=userRot;
+}
+bRot.addEventListener('click',()=>{ userRot=!userRot; bRot.setAttribute('aria-pressed',userRot); if(!selected) controls.autoRotate=userRot; });
+bRot.setAttribute('aria-pressed',userRot);
+function zoom(f){ const d=camera.position.clone().sub(controls.target); const L=THREE.MathUtils.clamp(d.length()*f,controls.minDistance,controls.maxDistance); tweenTo(controls.target.clone().add(d.setLength(L)),controls.target.clone(),450); }
+document.getElementById('bIn').addEventListener('click',()=>zoom(.78));
+document.getElementById('bOut').addEventListener('click',()=>zoom(1.28));
+document.getElementById('bReset').addEventListener('click',reset);
+addEventListener('keydown',e=>{ if(e.key==='Escape'&&selected) reset(); });
+controls.addEventListener('start',()=>{ tween=null; });
+
+// clic / toucher sur un composant 3D
+const ray=new THREE.Raycaster(), ndc=new THREE.Vector2(); let down=null;
+canvas.addEventListener('pointerdown',e=>{ down=[e.clientX,e.clientY]; });
+canvas.addEventListener('pointerup',e=>{
+  if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>6) return;
+  const r=canvas.getBoundingClientRect(); ndc.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);
+  ray.setFromCamera(ndc,camera); const hit=ray.intersectObject(robot,true).find(h=>h.object.isMesh);
+  if(!hit){ if(selected) reset(); return; }
+  let o=hit.object; while(o&&!o.userData.key) o=o.parent; if(o) select(o.userData.key);
+});
+canvas.addEventListener('pointermove',e=>{ if(e.buttons) return; const r=canvas.getBoundingClientRect(); ndc.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1); ray.setFromCamera(ndc,camera); canvas.style.cursor=ray.intersectObject(robot,true).length?'pointer':'grab'; });
+
+/* ================= boucle ================= */
+function resize(){ const w=viewer.clientWidth, h=viewer.clientHeight; renderer.setSize(w,h,false); camera.aspect=w/h;
+  // recul automatique sur écran étroit
+  camera.fov = w<720 ? 50 : 36; camera.updateProjectionMatrix(); svg.setAttribute('viewBox',`0 0 ${w} ${h}`); }
+new ResizeObserver(resize).observe(viewer); resize();
+
+const v=new THREE.Vector3(), center=new THREE.Vector3(0,11,0), ease=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+let orbitT=0, last=performance.now();
+function frame(now){
+  const dt=Math.min(.05,(now-last)/1000); last=now;
+  if(tween){ const k=Math.min(1,(now-tween.s)/tween.dur), e=ease(k); camera.position.lerpVectors(tween.p0,tween.p1,e); controls.target.lerpVectors(tween.t0,tween.t1,e); if(k>=1) tween=null; }
+  controls.update();
+  { const ww=viewer.clientWidth, hh=viewer.clientHeight; const oy=(selected&&ww<720)?hh*.28:0; if(camera.view?.offsetY!==oy || camera.view?.fullWidth!==ww || camera.view?.fullHeight!==hh){ camera.setViewOffset(ww,hh,0,oy,ww,hh); } }
+  // surbrillance
+  const pulse=.55+.45*Math.sin(now/260);
+  Object.values(groups).forEach(g=>{ const on=g.userData.key===selected; g.userData.mats.forEach(m=>{ if(on){ m.emissive.setHex(0xc9a173); m.emissiveIntensity=.22+.28*pulse; } else { m.emissive.copy(m.userData.e0); m.emissiveIntensity=m.userData.i0; } }); });
+  const L=groups.light.userData; const flick=1+.05*Math.sin(now/90)+.03*Math.sin(now/37); L.light.intensity=40*flick*(selected==='light'?1.6:1); L.dome.emissiveIntensity=1.6*flick; L.dome.emissive.setHex(0xffb54d);
+  if(bit) bit.rotation.z += selected==='drill' && !reduce ? dt*28 : 0;
+  renderer.render(scene,camera);
+
+  // pop-ups en orbite autour de la projection du robot
+  const w=viewer.clientWidth, h=viewer.clientHeight, narrow=w<720;
+  if(!reduce) orbitT += dt*(selected?0.012:0.05);
+  v.copy(center).project(camera);
+  const occ=panel.classList.contains('open')&&!narrow ? panel.offsetWidth+30 : 0, aw=w-occ;
+  const cx=occ?aw/2:(v.x*.5+.5)*w, cy=occ?h*.45:(-v.y*.5+.5)*h;
+  const rx=narrow?w*.36:Math.min(aw*.36,560), ry=narrow?h*.34:Math.min(h*.34,290);
+  UI.forEach(u=>{
+    const ang=u.phase+orbitT; let x=cx+Math.cos(ang)*rx, y=cy+Math.sin(ang)*ry;
+    const bw=u.b.offsetWidth, bh=u.b.offsetHeight;
+    x=Math.max(bw/2+8,Math.min(w-occ-bw/2-8,x)); y=Math.max(bh/2+(narrow?112:12),Math.min(h-bh/2-(narrow?64:150),y));
+    u.b.style.transform=`translate(${x-bw/2}px,${y-bh/2}px)`; u.b.style.left='0';u.b.style.top='0';
+    v.copy(u.a).project(camera); const ax=(v.x*.5+.5)*w, ay=(-v.y*.5+.5)*h;
+    u.d.style.left=ax+'px'; u.d.style.top=ay+'px';
+    u.l.setAttribute('x1',x); u.l.setAttribute('y1',y); u.l.setAttribute('x2',ax); u.l.setAttribute('y2',ay);
+  });
+  requestAnimationFrame(frame);
+}
+// .orb est centré via transform : on neutralise le translate(-50%) CSS
+document.querySelectorAll('.orb').forEach(b=>b.style.translate='0 0');
+document.getElementById('loading').remove();
+requestAnimationFrame(frame);
+window.__mr={select,reset,camera,controls};
+</script>
+
+</body></html>
