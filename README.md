@@ -1,4 +1,5 @@
 # 🤖 Mini-robot — Conception mécanique et programmation embarquée
+pour visualiser mon projet mini-robot il suffit juste de telecharger le fichier index.html et apres vous pourrez voir la maquette 3D 
 
 **Auteur :** Célian Crochat  
 **Type de projet :** Projet collectif de robotique  
